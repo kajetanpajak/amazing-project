@@ -36,20 +36,20 @@ def main():
     # video_names = [f for f in files if f.lower().endswith(('.mp4'))]
     videos_failed = []
 
-    output_dir = Path('output_pendrive')
+    output_dir = Path('output')
     header = ['Frame', 'Diameter (pixels)', 'Diameter (ratio)']
 
-    directory_path = 'videos'
-    video_names = ['C0209.MP4', 'C0210.MP4', 'C0211.MP4']
+    directory_path = Path('./videos/')
+    video_names = ['4.2 odległość 4 mm prędkość 10 2.MP4']
 
     for file_name in video_names:
         file_name = Path(file_name)
         file_path = os.path.join(directory_path, file_name)
        
-        cap = cv.VideoCapture(file_path, cv.CAP_FFMPEG)
+        cap = cv.VideoCapture(file_path)
 
         if not cap.isOpened():
-            print(f'Failed to open: {file_name}')
+            print(f'Failed to open: {file_path}')
             videos_failed.append(file_name)
             continue
         else:
