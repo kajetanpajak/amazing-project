@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import segmentation_models_pytorch as smp
+from datasets import get_training_transforms, get_validation_transforms
 
 class SegmentationModel(nn.Module):
     """Unet CNN using segmentation_models_pytorch library."""
@@ -8,7 +9,8 @@ class SegmentationModel(nn.Module):
             self, encoder_name: str,
             encoder_weights: str,
             in_channels: int,
-            classes: int=1):
+            classes: int=1,
+            image_size: tuple[int, int]=(512,512)):
         super().__init__()
 
         self.model = smp.Unet(
@@ -17,6 +19,9 @@ class SegmentationModel(nn.Module):
             in_channels=in_channels,
             classes=classes,
         )
+
+        self.training_transform = get_training_transforms(image_size)
+        self.validation_transform = get_validation_transforms(image_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.model(x)

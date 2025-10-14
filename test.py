@@ -21,7 +21,8 @@ def main():
             encoder_name='efficientnet-b3',
             encoder_weights=None,
             in_channels=3,
-            classes=1
+            classes=1,
+            image_size=(512,512)
         )
 
     model_state_dict = torch.load('models/best_model.pth', map_location=device)["model_state_dict"]
@@ -30,7 +31,7 @@ def main():
     model.eval()
 
     image_size = (512, 512)
-    transform = get_validation_transforms(image_size=image_size)
+    transform = model.validation_transform
 
     # files = os.listdir(directory_path)
     # video_names = [f for f in files if f.lower().endswith(('.mp4'))]
@@ -39,8 +40,8 @@ def main():
     output_dir = Path('output')
     header = ['Frame', 'Diameter (pixels)', 'Diameter (ratio)']
 
-    directory_path = Path('./videos/')
-    video_names = ['4.2 odległość 4 mm prędkość 10 2.MP4']
+    directory_path = Path('~/Videos/fluid_videos/pendrive1').expanduser()
+    video_names = ['0,5% M0,05 GK0,2 2.MP4']
 
     for file_name in video_names:
         file_name = Path(file_name)
