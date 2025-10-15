@@ -9,8 +9,7 @@ class SegmentationModel(nn.Module):
             self, encoder_name: str,
             encoder_weights: str,
             in_channels: int,
-            classes: int=1,
-            image_size: tuple[int, int]=(512,512)):
+            classes: int=1):
         super().__init__()
 
         self.model = smp.Unet(
@@ -20,11 +19,9 @@ class SegmentationModel(nn.Module):
             classes=classes,
         )
 
-        self.training_transform = get_training_transforms(image_size)
-        self.validation_transform = get_validation_transforms(image_size)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.model(x)
+        return torch.sigmoid(self.model(x))
     
 class DiceLoss(nn.Module):
     """Dice loss function."""

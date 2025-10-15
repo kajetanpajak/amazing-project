@@ -5,15 +5,17 @@ import numpy as np
 
 from model import SegmentationModel
 from utils import get_binary_mask
+from datasets import get_validation_transforms
 
 class DiameterMeasurement():
     
-    def __init__(self, cap: cv.VideoCapture, model: SegmentationModel, device: str):
+    def __init__(self, cap: cv.VideoCapture, model: SegmentationModel, device: str,
+                transform):
         
         self.cap = cap
         self.model = model
         self.device = device
-        self.validation_transform = model.validation_transform
+        self.transform = transform
 
         self.model.to(self.device)
         model.eval()
@@ -44,7 +46,7 @@ class DiameterMeasurement():
             mask = get_binary_mask(frame=frame,
                                    model=self.model,
                                    device=self.device,
-                                   transform=self.model.validation_transform)
+                                   transform=self.transform)
             
             if self._break_check(mask):
                 high = mid
@@ -63,14 +65,14 @@ class DiameterMeasurement():
         
         self.cap.set(cv.CAP_PROP_POS_FRAMES, high-1)
         ret, frame = self.cap.read()
-        mask = get_binary_mask(frame, self.model, self.device, self.model.validation_transform)
+        mask = get_binary_mask(frame, self.model, self.device, self.transform)
 
         if self._break_check(mask):
             self.break_frame = high
             self.fluid_breaks = True
         else:
             ret, frame = self.cap.read()
-            mask = get_binary_mask(frame, self.model, self.device, self.model.validation_transform)
+            mask = get_binary_mask(frame, self.model, self.device, self.transform)
             if self._break_check(mask):
                 self.break_frame = high + 1
                 self.fluid_breaks = True
@@ -85,11 +87,9 @@ class DiameterMeasurement():
         """Checks a single frame and returns a boolean value, depending on whether
         the fluid already broke or not."""
 
-        white_coords = np.argwhere(mask==255) # list of [y, x]
-        left_most = white_coords[:, 1].min()
-        right_most = white_coords[:,1].max()
+        leftmost, rightmost = self._mask_left_right_x(mask)
 
-        column_sums = np.sum(mask[:, left_most:right_most], axis=0) 
+        column_sums = np.sum(mask[:, leftmost:rightmost], axis=0) 
         if np.any(column_sums == 0):
             return True
         return False
@@ -113,13 +113,11 @@ class DiameterMeasurement():
             frame=frame,
             model=self.model,
             device=self.device,
-            transform=self.model.validation_transform)
+            transform=self.transform)
         
-        white_coords = np.argwhere(mask==255) # list of [y, x]
-        left_most = white_coords[:, 1].min()
-        right_most = white_coords[:,1].max()
+        leftmost, rightmost = self._mask_left_right_x(mask)
 
-        self.final_width = right_most - left_most
+        self.final_width = rightmost - leftmost
 
         # binary search for end of expansion
 
@@ -140,14 +138,12 @@ class DiameterMeasurement():
             mask = get_binary_mask(frame=frame,
                                    model=self.model,
                                    device=self.device,
-                                   transform=self.model.validation_transform)
+                                   transform=self.transform)
             
 
-            white_coords = np.argwhere(mask==255) # list of [y, x]
-            left_most = white_coords[:, 1].min()
-            right_most = white_coords[:,1].max()
+            leftmost, rightmost = self._mask_left_right_x(mask)
 
-            width = right_most - left_most
+            width = rightmost - leftmost
 
             if width >= self.final_width * 0.98:
                 high = mid
@@ -189,11 +185,9 @@ class DiameterMeasurement():
             mask = get_binary_mask(frame=frame,
                                    model=self.model,
                                    device=self.device,
-                                   transform=self.model.validation_transform)
+                                   transform=self.transform)
             
-            white_coords = np.argwhere(mask==255) # list of [y, x]
-            leftmost = white_coords[:, 1].min()
-            rightmost = white_coords[:,1].max()
+            leftmost, rightmost = self._mask_left_right_x(mask)
 
             # column sums in fluid region
             offset = 10 # offset in order to avoid finding narrowest points on edges
@@ -212,7 +206,6 @@ class DiameterMeasurement():
                 diameter = np.sum(measurement_col) / 255
                 top_point = np.where(measurement_col == 255)[0][0]
                 cv.line(frame, (x_narrowest, top_point), (x_narrowest, top_point + int(diameter)), (0, 255, 0), 1)
-                print(diameter)
 
                 mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
                 combined_frames = np.hstack((frame, mask))
@@ -224,10 +217,14 @@ class DiameterMeasurement():
 
         self.x_measurement = int(np.mean(narrowest_points))
 
+    def _mask_left_right_x(self, mask):
+        """Returns the x-coordinates of the leftmost and rightmost white pixels of a binary mask."""
+        white_coords = np.argwhere(mask==255) # list of [y, x]
+        leftmost = white_coords[:, 1].min()
+        rightmost = white_coords[:,1].max()
 
-            
+        return leftmost, rightmost
 
-        
 
 
 def main():
@@ -243,8 +240,7 @@ def main():
             encoder_name='efficientnet-b3',
             encoder_weights=None,
             in_channels=3,
-            classes=1,
-            image_size=(512,512)
+            classes=1
         )
 
     model_state_dict = torch.load('models/best_model.pth', map_location=device)["model_state_dict"]
@@ -255,7 +251,8 @@ def main():
     diameter_measurement = DiameterMeasurement(
         cap=cap,
         model=model,
-        device=device
+        device=device,
+        transform=get_validation_transforms((512, 512))
     )
 
     diameter_measurement._find_break_frame(False)

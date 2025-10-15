@@ -135,8 +135,8 @@ def get_binary_mask(frame: np.ndarray,
     frame = transform(image=frame)['image'].unsqueeze(0)  # Add batch dimension
     frame = frame.to(device)
 
-    with torch.inference_mode():
-        pred_mask = torch.sigmoid(model(frame))
+    with torch.inference_mode(), torch.autocast(device_type=device, dtype=torch.bfloat16):
+        pred_mask = model(frame)
     pred_mask = (pred_mask > 0.5).float()
     pred_mask = pred_mask.squeeze().cpu().numpy()  # Remove batch dimension and convert to numpy
     pred_mask = (pred_mask * 255).astype(np.uint8)

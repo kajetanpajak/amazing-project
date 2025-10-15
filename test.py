@@ -21,8 +21,7 @@ def main():
             encoder_name='efficientnet-b3',
             encoder_weights=None,
             in_channels=3,
-            classes=1,
-            image_size=(512,512)
+            classes=1
         )
 
     model_state_dict = torch.load('models/best_model.pth', map_location=device)["model_state_dict"]
@@ -31,7 +30,7 @@ def main():
     model.eval()
 
     image_size = (512, 512)
-    transform = model.validation_transform
+    transform = get_validation_transforms((512, 512))
 
     # files = os.listdir(directory_path)
     # video_names = [f for f in files if f.lower().endswith(('.mp4'))]
@@ -40,10 +39,21 @@ def main():
     output_dir = Path('output')
     header = ['Frame', 'Diameter (pixels)', 'Diameter (ratio)']
 
-    directory_path = Path('~/Videos/fluid_videos/pendrive1').expanduser()
-    video_names = ['0,5% M0,05 GK0,2 2.MP4']
+    directory_path = Path('~/Videos/fluid_videos/pendrive2').expanduser()
 
-    for file_name in video_names:
+    subdirs = os.listdir(directory_path)
+    
+
+    videos = []
+    for subdir in subdirs:
+
+        for video in os.listdir(os.path.join(directory_path, subdir)):
+            videos.append(os.path.join(subdir, video))
+
+    # print(videos)
+    
+
+    for file_name in videos:
         file_name = Path(file_name)
         file_path = os.path.join(directory_path, file_name)
        
@@ -87,11 +97,11 @@ def main():
             if top_point:
                 cv.line(disp_frame, (measurement_x, top_point), (measurement_x, top_point + int(diameter)), (0, 255, 0), 2)
 
-            mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
-            concatenated = np.hstack((disp_frame, mask))
-            cv.imshow('Frame and Mask', concatenated)
-            if cv.waitKey(20) & 0xFF == ord('q'):
-                break
+            # mask = cv.cvtColor(mask, cv.COLOR_GRAY2BGR)
+            # concatenated = np.hstack((disp_frame, mask))
+            # cv.imshow('Frame and Mask', concatenated)
+            # if cv.waitKey(20) & 0xFF == ord('q'):
+            #     break
             if cap.get(cv.CAP_PROP_POS_FRAMES) >= break_frame:
                 break
 
@@ -115,7 +125,8 @@ def main():
         plt.ylim(0, 1.1)
         plt.grid(True)
         plt.savefig(output_dir / f'{file_name.stem}_plot.png')
-        plt.show()
+        plt.close()
+        # plt.show()
 
 if __name__ == '__main__':
     main()
